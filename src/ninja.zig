@@ -70,12 +70,6 @@ pub const Build = struct {
 
     const Self = @This();
 
-    pub const Appendables = enum {
-        targets,
-        files,
-        deps,
-    };
-
     pub fn init(
         allocator: std.mem.Allocator,
         rule: Rule,
@@ -100,16 +94,14 @@ pub const Build = struct {
         self.deps.deinit();
     }
 
-    pub fn append(self: *Self, append_type: Appendables, val: []const u8) !void {
-        if (append_type == Appendables.targets) {
-            try self.targets.append(val);
-        } else if (append_type == Appendables.files) {
-            try self.files.append(val);
-        } else if (append_type == Appendables.deps) {
-            try self.deps.append(val);
-        } else {
-            return error.UnknownAppendables;
-        }
+    pub fn appendTarget(self: *Self, val: []const u8) !void {
+        try self.targets.append(val);
+    }
+    pub fn appendFile(self: *Self, val: []const u8) !void {
+        try self.files.append(val);
+    }
+    pub fn appendDep(self: *Self, val: []const u8) !void {
+        try self.deps.append(val);
     }
 
     pub fn toString(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
@@ -270,10 +262,10 @@ test "Initialize NinjaBuild" {
 
     var test_build = Build.init(test_allocator, test_rule, false);
     {
-        try test_build.append(Build.Appendables.targets, "target");
-        try test_build.append(Build.Appendables.files, "infile_1");
-        try test_build.append(Build.Appendables.files, "infile_2");
-        try test_build.append(Build.Appendables.deps, "dep");
+        try test_build.appendTarget("target");
+        try test_build.appendFile("infile_1");
+        try test_build.appendFile("infile_2");
+        try test_build.appendDep("dep");
     }
     defer test_build.deinit();
 
@@ -307,11 +299,11 @@ test "Format string from NinjaBuild" {
 
     var test_build = Build.init(test_allocator, test_rule, false);
     {
-        try test_build.append(Build.Appendables.targets, "target_1");
-        try test_build.append(Build.Appendables.targets, "target_2");
-        try test_build.append(Build.Appendables.files, "infile_1");
-        try test_build.append(Build.Appendables.files, "infile_2");
-        try test_build.append(Build.Appendables.deps, "dep");
+        try test_build.appendTarget("target_1");
+        try test_build.appendTarget("target_2");
+        try test_build.appendFile("infile_1");
+        try test_build.appendFile("infile_2");
+        try test_build.appendDep("dep");
     }
     defer test_build.deinit();
 
