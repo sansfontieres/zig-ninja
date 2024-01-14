@@ -240,8 +240,8 @@ test "Format string from NinjaRule" {
 
         const expected_string_2 =
             \\rule test_rule_2
-            \\  command = touch $in $
-            \\            echo did something to $i $
+            \\  command = touch $in && $
+            \\            echo did something to $i && $
             \\            echo yay
             \\  description = This is a test rule
             \\  generator = 0
