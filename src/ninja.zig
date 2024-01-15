@@ -161,7 +161,7 @@ pub const Build = struct {
         } else {
             return try std.fmt.allocPrint(
                 allocator,
-                "build {s}: {s} {s}\n",
+                "build {s}: {s} {s}",
                 .{
                     target_list.items,
                     self.rule.name,
