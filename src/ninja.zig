@@ -63,6 +63,7 @@ pub const Rule = struct {
 
 pub const Build = struct {
     targets: std.ArrayList([]const u8),
+    implicit_targets: std.ArrayList([]const u8),
     rule: Rule,
     files: std.ArrayList([]const u8),
     deps: std.ArrayList([]const u8),
@@ -76,11 +77,13 @@ pub const Build = struct {
         ordered_deps: bool,
     ) Self {
         const targets = std.ArrayList([]const u8).init(allocator);
+        const implicit_targets = std.ArrayList([]const u8).init(allocator);
         const files = std.ArrayList([]const u8).init(allocator);
         const deps = std.ArrayList([]const u8).init(allocator);
 
         return Self{
             .targets = targets,
+            .implicit_targets = implicit_targets,
             .rule = rule,
             .files = files,
             .deps = deps,
@@ -90,6 +93,7 @@ pub const Build = struct {
 
     pub fn deinit(self: *Self) void {
         self.targets.deinit();
+        self.implicit_targets.deinit();
         self.files.deinit();
         self.deps.deinit();
     }
@@ -97,6 +101,11 @@ pub const Build = struct {
     pub fn appendTarget(self: *Self, val: []const u8) !void {
         try self.targets.append(val);
     }
+
+    pub fn appendImplicitTarget(self: *Self, val: []const u8) !void {
+        try self.implicit_targets.append(val);
+    }
+
     pub fn appendFile(self: *Self, val: []const u8) !void {
         try self.files.append(val);
     }
@@ -106,9 +115,11 @@ pub const Build = struct {
 
     pub fn toString(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
         var target_list = std.ArrayList(u8).init(allocator);
+        var implicit_target_list = std.ArrayList(u8).init(allocator);
         var file_list = std.ArrayList(u8).init(allocator);
         var dep_list = std.ArrayList(u8).init(allocator);
         defer target_list.deinit();
+        defer implicit_target_list.deinit();
         defer file_list.deinit();
         defer dep_list.deinit();
 
@@ -118,6 +129,15 @@ pub const Build = struct {
             } else {
                 try target_list.appendSlice(" ");
                 try target_list.appendSlice(target);
+            }
+        }
+
+        for (self.implicit_targets.items, 0..) |implicit_target, idx| {
+            if (idx == 0 or idx == self.implicit_targets.items.len) {
+                try implicit_target_list.appendSlice(implicit_target);
+            } else {
+                try implicit_target_list.appendSlice(" ");
+                try implicit_target_list.appendSlice(implicit_target);
             }
         }
 
@@ -139,36 +159,35 @@ pub const Build = struct {
             }
         }
 
-        var separator: []const u8 = undefined;
-        if (self.ordered_deps) {
-            separator = "||";
+        var dep_separator: []const u8 = undefined;
+        if (self.deps.items.len == 0) {
+            dep_separator = "";
+        } else if (self.ordered_deps) {
+            dep_separator = " || ";
         } else {
-            separator = "|";
+            dep_separator = " | ";
         }
 
-        if (self.deps.items.len >= 1) {
-            return try std.fmt.allocPrint(
-                allocator,
-                "build {s}: {s} {s} {s} {s}",
-                .{
-                    target_list.items,
-                    self.rule.name,
-                    file_list.items,
-                    separator,
-                    dep_list.items,
-                },
-            );
+        var output_separator: []const u8 = undefined;
+        if (self.implicit_targets.items.len >= 1) {
+            output_separator = " | ";
         } else {
-            return try std.fmt.allocPrint(
-                allocator,
-                "build {s}: {s} {s}",
-                .{
-                    target_list.items,
-                    self.rule.name,
-                    file_list.items,
-                },
-            );
+            output_separator = "";
         }
+
+        return try std.fmt.allocPrint(
+            allocator,
+            "build {s}{s}{s}: {s} {s}{s}{s}",
+            .{
+                target_list.items,
+                output_separator,
+                implicit_target_list.items,
+                self.rule.name,
+                file_list.items,
+                dep_separator,
+                dep_list.items,
+            },
+        );
     }
 };
 
@@ -263,6 +282,7 @@ test "Initialize NinjaBuild" {
     var test_build = Build.init(test_allocator, test_rule, false);
     {
         try test_build.appendTarget("target");
+        try test_build.appendImplicitTarget("implicit_target");
         try test_build.appendFile("infile_1");
         try test_build.appendFile("infile_2");
         try test_build.appendDep("dep");
@@ -271,6 +291,10 @@ test "Initialize NinjaBuild" {
 
     for (test_build.targets.items) |item| {
         try std.testing.expect(std.mem.eql(u8, "target", item));
+    }
+
+    for (test_build.implicit_targets.items) |item| {
+        try std.testing.expect(std.mem.eql(u8, "implicit_target", item));
     }
 
     for (test_build.files.items, 0..) |item, idx| {
@@ -300,7 +324,7 @@ test "Format string from NinjaBuild" {
     var test_build = Build.init(test_allocator, test_rule, false);
     {
         try test_build.appendTarget("target_1");
-        try test_build.appendTarget("target_2");
+        try test_build.appendImplicitTarget("target_2");
         try test_build.appendFile("infile_1");
         try test_build.appendFile("infile_2");
         try test_build.appendDep("dep");
@@ -311,7 +335,7 @@ test "Format string from NinjaBuild" {
     defer test_allocator.free(test_string_1);
 
     const expected_string_1 =
-        "build target_1 target_2: test_rule infile_1 infile_2 | dep";
+        "build target_1 | target_2: test_rule infile_1 infile_2 | dep";
 
     try std.testing.expect(std.mem.eql(u8, test_string_1, expected_string_1));
 }
