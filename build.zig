@@ -1,13 +1,13 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    _ = b.addModule("ninja", .{ .root_source_file = .{ .path = "src/ninja.zig" } });
+    _ = b.addModule("ninja", .{ .root_source_file = .{ .path = "ninja.zig" } });
 
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/ninja.zig" },
+        .root_source_file = .{ .path = "ninja.zig" },
         .target = target,
         .optimize = optimize,
     });
