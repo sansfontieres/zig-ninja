@@ -98,19 +98,19 @@ pub const Build = struct {
         self.implicit_dependencies.deinit();
     }
 
-    pub fn appendOutput(self: *Self, val: []const u8) !void {
-        try self.outputs.append(val);
-    }
+    pub fn append(
+        self: *Self,
+        comptime scope: @Type(.EnumLiteral),
+        val: []const u8,
+    ) !void {
+        switch (scope) {
+            .output => try self.outputs.append(val),
+            .implicit_output => try self.implicit_outputs.append(val),
+            .dependency => try self.dependencies.append(val),
+            .implicit_dependency => try self.implicit_dependencies.append(val),
 
-    pub fn appendImplicitOutput(self: *Self, val: []const u8) !void {
-        try self.implicit_outputs.append(val);
-    }
-
-    pub fn appendDependency(self: *Self, val: []const u8) !void {
-        try self.dependencies.append(val);
-    }
-    pub fn appendImplicitDependency(self: *Self, val: []const u8) !void {
-        try self.implicit_dependencies.append(val);
+            else => return error.UnknownScope,
+        }
     }
 
     pub fn toString(self: *Self, allocator: std.mem.Allocator) ![]const u8 {
@@ -203,9 +203,9 @@ test "Initialize NinjaRule" {
 
     for (test_rule.commands.items, 0..) |item, idx| {
         if (idx == 0) {
-            try std.testing.expect(std.mem.eql(u8, "touch $in", item));
+            try std.testing.expectEqualStrings("touch $in", item);
         } else if (idx == 1) {
-            try std.testing.expect(std.mem.eql(u8, "echo yay", item));
+            try std.testing.expectEqualStrings("echo yay", item);
         } else {
             return error.TestUnexpectedResult;
         }
@@ -237,7 +237,7 @@ test "Format string from NinjaRule" {
             \\  generator = 0
         ;
 
-        try std.testing.expect(std.mem.eql(u8, test_string_1, expected_string_1));
+        try std.testing.expectEqualStrings(test_string_1, expected_string_1);
     }
 
     {
@@ -266,7 +266,7 @@ test "Format string from NinjaRule" {
             \\  generator = 0
         ;
 
-        try std.testing.expect(std.mem.eql(u8, test_string_2, expected_string_2));
+        try std.testing.expectEqualStrings(test_string_2, expected_string_2);
     }
 }
 
@@ -281,34 +281,39 @@ test "Initialize NinjaBuild" {
 
     var test_build = Build.init(test_allocator, test_rule, false);
     {
-        try test_build.appendOutput("output");
-        try test_build.appendImplicitOutput("implicit_output");
-        try test_build.appendDependency("dependency_1");
-        try test_build.appendDependency("dependency_2");
-        try test_build.appendImplicitDependency("implicit_dependency");
+        try test_build.append(.output, "output");
+        try test_build.append(.implicit_output, "implicit_output");
+        try test_build.append(.dependency, "dependency_1");
+        try test_build.append(.dependency, "dependency_2");
+        try test_build.append(.implicit_dependency, "implicit_dependency");
+
+        try std.testing.expectError(
+            error.UnknownScope,
+            test_build.append(.something_unscoped, ":^("),
+        );
     }
     defer test_build.deinit();
 
     for (test_build.outputs.items) |item| {
-        try std.testing.expect(std.mem.eql(u8, "output", item));
+        try std.testing.expectEqualStrings("output", item);
     }
 
     for (test_build.implicit_outputs.items) |item| {
-        try std.testing.expect(std.mem.eql(u8, "implicit_output", item));
+        try std.testing.expectEqualStrings("implicit_output", item);
     }
 
     for (test_build.dependencies.items, 0..) |item, idx| {
         if (idx == 0) {
-            try std.testing.expect(std.mem.eql(u8, "dependency_1", item));
+            try std.testing.expectEqualStrings("dependency_1", item);
         } else if (idx == 1) {
-            try std.testing.expect(std.mem.eql(u8, "dependency_2", item));
+            try std.testing.expectEqualStrings("dependency_2", item);
         } else {
             return error.TestUnexpectedResult;
         }
     }
 
     for (test_build.implicit_dependencies.items) |item| {
-        try std.testing.expect(std.mem.eql(u8, "implicit_dependency", item));
+        try std.testing.expectEqualStrings("implicit_dependency", item);
     }
 }
 
@@ -323,10 +328,10 @@ test "Format string from NinjaBuild" {
 
     var test_build = Build.init(test_allocator, test_rule, false);
     {
-        try test_build.appendOutput("output_1");
-        try test_build.appendImplicitOutput("output_2");
-        try test_build.appendDependency("dependency");
-        try test_build.appendImplicitDependency("implicit_dependency");
+        try test_build.append(.output, "output_1");
+        try test_build.append(.implicit_output, "output_2");
+        try test_build.append(.dependency, "dependency");
+        try test_build.append(.implicit_dependency, "implicit_dependency");
     }
     defer test_build.deinit();
 
@@ -336,5 +341,5 @@ test "Format string from NinjaBuild" {
     const expected_string_1 =
         "build output_1 | output_2: test_rule dependency | implicit_dependency";
 
-    try std.testing.expect(std.mem.eql(u8, test_string_1, expected_string_1));
+    try std.testing.expectEqualStrings(test_string_1, expected_string_1);
 }
