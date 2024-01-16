@@ -222,22 +222,22 @@ test "Format string from NinjaRule" {
     const test_allocator = std.testing.allocator;
 
     {
-        var test_rule_1 = Rule.init(
+        var test_rule = Rule.init(
             test_allocator,
-            "test_rule_1",
+            "test_rule",
             "This is a test rule",
             false,
         );
-        defer test_rule_1.deinit();
+        defer test_rule.deinit();
         {
-            try test_rule_1.append("yes");
+            try test_rule.append("yes");
         }
 
-        const test_string_1 = try test_rule_1.toString(test_allocator);
+        const test_string_1 = try test_rule.toString(test_allocator);
         defer test_allocator.free(test_string_1);
 
         const expected_string_1 =
-            \\rule test_rule_1
+            \\rule test_rule
             \\  command = yes
             \\  description = This is a test rule
         ;
@@ -246,31 +246,31 @@ test "Format string from NinjaRule" {
     }
 
     {
-        var test_rule_2 = Rule.init(
+        var test_rule = Rule.init(
             test_allocator,
-            "test_rule_2",
+            "test_rule",
             "This is a test rule",
             false,
         );
-        defer test_rule_2.deinit();
+        defer test_rule.deinit();
         {
-            try test_rule_2.append("touch $in");
-            try test_rule_2.append("echo did something to $i");
-            try test_rule_2.append("echo yay");
+            try test_rule.append("touch $in");
+            try test_rule.append("echo did something to $i");
+            try test_rule.append("echo yay");
         }
 
-        const test_string_2 = try test_rule_2.toString(test_allocator);
-        defer test_allocator.free(test_string_2);
+        const test_string = try test_rule.toString(test_allocator);
+        defer test_allocator.free(test_string);
 
-        const expected_string_2 =
-            \\rule test_rule_2
+        const expected_string =
+            \\rule test_rule
             \\  command = touch $in && $
             \\            echo did something to $i && $
             \\            echo yay
             \\  description = This is a test rule
         ;
 
-        try std.testing.expectEqualStrings(test_string_2, expected_string_2);
+        try std.testing.expectEqualStrings(test_string, expected_string);
     }
 }
 
@@ -339,11 +339,11 @@ test "Format string from NinjaBuild" {
     }
     defer test_build.deinit();
 
-    const test_string_1 = try test_build.toString(test_allocator);
-    defer test_allocator.free(test_string_1);
+    const test_string = try test_build.toString(test_allocator);
+    defer test_allocator.free(test_string);
 
-    const expected_string_1 =
+    const expected_string =
         "build output_1 | output_2: test_rule dependency | implicit_dependency";
 
-    try std.testing.expectEqualStrings(test_string_1, expected_string_1);
+    try std.testing.expectEqualStrings(test_string, expected_string);
 }
