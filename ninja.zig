@@ -44,18 +44,24 @@ pub const Rule = struct {
             }
         }
 
+        var generator_str: []const u8 = undefined;
+        if (self.generator) {
+            generator_str = "\n  generator = 1";
+        } else {
+            generator_str = "";
+        }
+
         return try std.fmt.allocPrint(
             allocator,
             \\rule {s}
             \\  command = {s}
-            \\  description = {s}
-            \\  generator = {d}
+            \\  description = {s}{s}
         ,
             .{
                 self.name,
                 command_list.items,
                 self.description,
-                @intFromBool(self.generator),
+                generator_str,
             },
         );
     }
@@ -234,7 +240,6 @@ test "Format string from NinjaRule" {
             \\rule test_rule_1
             \\  command = yes
             \\  description = This is a test rule
-            \\  generator = 0
         ;
 
         try std.testing.expectEqualStrings(test_string_1, expected_string_1);
@@ -263,7 +268,6 @@ test "Format string from NinjaRule" {
             \\            echo did something to $i && $
             \\            echo yay
             \\  description = This is a test rule
-            \\  generator = 0
         ;
 
         try std.testing.expectEqualStrings(test_string_2, expected_string_2);
